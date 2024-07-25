@@ -62,7 +62,10 @@ dnSpy_debugger_init ()
 
 	char* argv[] = { envVal };
 	mono_jit_parse_options (1, (char**)argv);
-	mono_debug_init (MONO_DEBUG_FORMAT_MONO);
+	// Builds are possible in which this instance of mono_debug_init is not called first.
+	// To prevent an assertion error, check if debug is already enabled.
+	if (!mono_debug_enabled ())
+		mono_debug_init (MONO_DEBUG_FORMAT_MONO);
 }
 
 int
