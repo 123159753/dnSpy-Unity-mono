@@ -4350,6 +4350,8 @@ mini_is_interpreter_enabled (void)
 static const char*
 mono_get_runtime_build_version (void);
 
+extern void dnSpy_debugger_init (void);
+
 MonoDomain *
 mini_init (const char *filename, const char *runtime_version)
 {
@@ -4365,6 +4367,8 @@ mini_init (const char *filename, const char *runtime_version)
 	MONO_VES_INIT_BEGIN ();
 
 	CHECKED_MONO_INIT ();
+
+	dnSpy_debugger_init ();
 
 #if defined(__linux__)
 	if (access ("/proc/self/maps", F_OK) != 0) {
