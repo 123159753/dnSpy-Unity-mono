@@ -25,6 +25,7 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 	enum ProjectFilesKind {
 		V2017,
 		V2018,
+		V2022,
 	}
 
 	sealed class SolutionOptionsV40 : SolutionOptions {
@@ -37,6 +38,7 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 		public readonly ProjectInfo? LibmonoruntimeProject;
 		public readonly ProjectInfo? LibmonoStaticProject;
 		public readonly ProjectInfo? LibmonoutilsProject;
+		public readonly ProjectInfo? MonowProject;
 
 		public override IEnumerable<ProjectInfo> AllProjects {
 			get {
@@ -49,6 +51,7 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 				if (LibmonoruntimeProject != null) yield return LibmonoruntimeProject;
 				if (LibmonoStaticProject != null) yield return LibmonoStaticProject;
 				if (LibmonoutilsProject != null) yield return LibmonoutilsProject;
+				if (MonowProject != null) yield return MonowProject;
 			}
 		}
 
@@ -77,6 +80,15 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 				GenmdescProject = new ProjectInfo(ConstantsV40.OldGuid_genmdesc, Path.Combine(msvcPath, "genmdesc.vcxproj"));
 				LibgcbdwgcProject = new ProjectInfo(ConstantsV40.OldGuid_libgcbdwgc, Path.Combine(msvcPath, "libgcbdwgc.vcxproj"));
 				LibmonoDynamicProject = new ProjectInfo(ConstantsV40.OldGuid_libmono_dynamic, Path.Combine(msvcPath, "libmono-dynamic.vcxproj"));
+				break;
+
+			case ProjectFilesKind.V2022:
+				BuildInitProject = new ProjectInfo(ConstantsV40.OldGuid_build_init, Path.Combine(msvcPath, "build-init.vcxproj"));
+				EglibProject = new ProjectInfo(ConstantsV40.OldGuid_eglib, Path.Combine(msvcPath, "eglib.vcxproj"));
+				GenmdescProject = new ProjectInfo(ConstantsV40.OldGuid_genmdesc, Path.Combine(msvcPath, "genmdesc.vcxproj"));
+				LibgcbdwgcProject = new ProjectInfo(ConstantsV40.OldGuid_libgcbdwgc, Path.Combine(msvcPath, "libgc.vcxproj"));
+				LibmonoDynamicProject = new ProjectInfo(ConstantsV40.OldGuid_libmono_dynamic, Path.Combine(msvcPath, "libmono-dynamic.vcxproj"));
+				MonowProject = new ProjectInfo(ConstantsV40.OldGuid_monow, Path.Combine(msvcPath, "monow.vcxproj"));
 				break;
 
 			default:

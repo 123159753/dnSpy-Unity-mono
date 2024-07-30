@@ -46,7 +46,7 @@ namespace UnityMonoDllSourceCodePatcher {
 			PatchToolsVersion();
 			PatchProjectGuidTags();
 			PatchProjectTags();
-			AddWindowsTargetPlatformVersion();
+			AddOrRemoveWindowsTargetPlatformVersion();
 			AddPlatformToolset();
 			PatchCore();
 			textFilePatcher.Write();
@@ -153,6 +153,17 @@ namespace UnityMonoDllSourceCodePatcher {
 				throw new ProgramException($"Couldn't find Globals PropertyGroup, file '{textFilePatcher.Filename}'");
 			UpdateOrCreateTag(info.startTagIndex + 1, info.endTagIndex, "WindowsTargetPlatformVersion", solutionOptions.WindowsTargetPlatformVersion);
 		}
+		
+		void RemoveWindowsTargetPlatformVersion() {
+			foreach (var info in GetTags("WindowsTargetPlatformVersion"))
+				textFilePatcher.Lines.RemoveRange(info.startTagIndex, info.endTagIndex - info.startTagIndex + 1);
+		}
+
+		void AddOrRemoveWindowsTargetPlatformVersion() {
+			if (solutionOptions.WindowsTargetPlatformVersion == Constants.RemoveWindowsTargetPlatformVersion)
+				RemoveWindowsTargetPlatformVersion();
+			else AddWindowsTargetPlatformVersion();
+		}
 
 		void AddPlatformToolset() {
 			var infos = GetPropertyGroups().Where(a => textFilePatcher.Lines[a.startTagIndex].Text.Contains("Label=\"Configuration\""));
@@ -201,10 +212,10 @@ namespace UnityMonoDllSourceCodePatcher {
 			textFilePatcher.Replace(line => {
 				if (!line.Text.Contains("<OutDir"))
 					return line;
-				const string PATTERN = "\">";
+				const string PATTERN = ">";
 				int index = line.Text.IndexOf(PATTERN);
-				if (!line.Text.Contains("<OutDir Condition") || !line.Text.EndsWith("</OutDir>") || index < 0)
-					throw new ProgramException("Unexpected tag content");
+				if (!line.Text.EndsWith("</OutDir>") || index < 0)
+					throw new ProgramException("Unexpected tag content: " + line.Text);
 				var first = line.Text.Substring(0, index + PATTERN.Length);
 				var newText = first + newValue + "</OutDir>";
 				return line.Replace(newText);

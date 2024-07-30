@@ -18,6 +18,7 @@
 */
 
 using System;
+using System.IO;
 
 namespace UnityMonoDllSourceCodePatcher.V40 {
 	sealed class PatcherV40 : Patcher {
@@ -31,6 +32,8 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 		static ProjectFilesKind GetProjectFilesKind(string unityVersion) {
 			if (!UnityVersion.TryParse(unityVersion, out var version))
 				throw new InvalidOperationException($"Invalid unity version: {unityVersion}");
+			if (version.Major >= 2022)
+				return ProjectFilesKind.V2022;
 			if (version.Major >= 2018)
 				return ProjectFilesKind.V2018;
 			if (version.Major == 2017)
@@ -42,12 +45,33 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 		protected override string[] Submodules => ConstantsV40.Submodules;
 		protected override string[] UnityFoldersToCopy {
 			get {
+				if (solutionOptions.UnityVersion.Major >= 2022)
+					return ConstantsV40.UnityFoldersToCopy_2022;
 				if (solutionOptions.UnityVersion.Major >= 2018)
 					return ConstantsV40.UnityFoldersToCopy_2018;
 				if (solutionOptions.UnityVersion.Major == 2017)
 					return ConstantsV40.UnityFoldersToCopy_2017;
 				throw new InvalidOperationException($"Unknown version: {solutionOptions.UnityVersion}");
 			}
+		}
+		
+		protected override void CopyOriginalUnityFilesCore() {
+			if (solutionOptions.UnityVersion.Major < 2022) {
+				base.CopyOriginalUnityFilesCore();
+				return;
+			}
+			// We need to use the version of brotli from corefx-bugfix.
+			// To reduce number of unused, committed files; let's just overwrite the directory.
+			var coreFxBugfixBrotliDir = PathCombine(unityRepo.RepoPath, @"external\corefx-bugfix\src\Native\AnyOS\brotli");
+			var coreFxBrotliDir = PathCombine(dnSpyVersionPath, @"external\corefx\src\Native\AnyOS\brotli");
+			Directory.Delete(coreFxBrotliDir, true);
+			FileUtils.CopyDirectoryFromTo(coreFxBugfixBrotliDir, coreFxBrotliDir);
+			var transformC = PathCombine(coreFxBrotliDir, @"common\transform.c");
+			var brotliTransformC = PathCombine(coreFxBrotliDir, @"common\brotli_transform.c");
+			File.Move(transformC, brotliTransformC);
+			// external/bdwgc/.gitignore ignores external/bdwgc/libatomic_ops, which we need, so just delete it.
+			var gitIgnoreFile = PathCombine(dnSpyVersionPath, @"external\bdwgc\.gitignore");
+			File.Delete(gitIgnoreFile);
 		}
 
 		protected override void PatchOriginalFilesCore() {

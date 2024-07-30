@@ -43,33 +43,33 @@ namespace UnityMonoDllSourceCodePatcher {
 		}
 
 		public void SubmoduleInit() {
-			int result = Exec.Run(repoPath, gitPath, "submodule init");
+			int result = Exec.Run(repoPath, gitPath, "submodule init", out _, out var standardError);
 			if (result != 0)
-				ThrowError($"Git submodule init failed with error code {result}");
+				ThrowError($"Git submodule init failed with error code {result}: {standardError}");
 		}
 
 		public void SubmoduleUpdate(string path) {
-			int result = Exec.Run(repoPath, gitPath, $"submodule update {path}");
+			int result = Exec.Run(repoPath, gitPath, $"submodule update {path}", out _, out var standardError);
 			if (result != 0)
-				ThrowError($"Git submodule update {path} failed with error code {result}");
+				ThrowError($"Git submodule update {path} failed with error code {result}: {standardError}");
 		}
 
 		public void CheckOut(string hashOrBranchName) {
-			int result = Exec.Run(repoPath, gitPath, $"checkout {hashOrBranchName}");
+			int result = Exec.Run(repoPath, gitPath, $"checkout {hashOrBranchName}", out _, out var standardError);
 			if (result != 0)
-				ThrowError($"Git checkout {hashOrBranchName} failed with error code {result}");
+				ThrowError($"Git checkout {hashOrBranchName} failed with error code {result}: {standardError}");
 		}
 
 		void AddAll() {
-			int result = Exec.Run(repoPath, gitPath, $"add .");
+			int result = Exec.Run(repoPath, gitPath, $"add .", out _, out var standardError);
 			if (result != 0)
-				ThrowError($"Git add failed with error code {result}");
+				ThrowError($"Git add failed with error code {result}: {standardError}");
 		}
 
 		void Commit(string commitMessage) {
-			int result = Exec.Run(repoPath, gitPath, $"commit -m \"{commitMessage}\"");
+			int result = Exec.Run(repoPath, gitPath, $"commit -m \"{commitMessage}\"", out _, out var standardError);
 			if (result != 0)
-				ThrowError($"Git commit failed with error code {result}");
+				ThrowError($"Git commit failed with error code {result}: {standardError}");
 		}
 
 		public void CommitAllFiles(string commitMessage) {
@@ -78,9 +78,9 @@ namespace UnityMonoDllSourceCodePatcher {
 		}
 
 		public void Merge(string hashOrBranchName) {
-			int result = Exec.Run(repoPath, gitPath, $"merge --no-edit \"{hashOrBranchName}\"");
+			int result = Exec.Run(repoPath, gitPath, $"merge --no-edit \"{hashOrBranchName}\"", out _, out var standardError);
 			if (result != 0)
-				ThrowError($"Git commit failed with error code {result}");
+				ThrowError($"Git commit failed with error code {result}: {standardError}");
 		}
 	}
 }

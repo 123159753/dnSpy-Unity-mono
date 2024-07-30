@@ -19,6 +19,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 
 namespace UnityMonoDllSourceCodePatcher.V40 {
 	sealed class LibmonoDynamicProjectPatcher : ProjectPatcherV40 {
@@ -34,6 +35,7 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 			PatchDebugInformationFormats(ConstantsV40.ReleaseConfigsWithNoPdb);
 			PatchGenerateDebugInformationTags(ConstantsV40.ReleaseConfigsWithNoPdb);
 			AddSourceFiles();
+			Patch_msvc_clrcompression_targets();
 			AddProjectReference(libgcbdwgcProject);
 			RemoveProjectReference("libgc.vcxproj");
 			PatchSolutionDir();
@@ -44,6 +46,31 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 			int index = textFilePatcher.GetIndexOfLine(line => line.Text.Contains(@"<ClCompile Include=""$(MonoSourceLocation)\mono\mini\debugger-agent.c"""));
 			var indent = textFilePatcher.GetLeadingWhitespace(index);
 			textFilePatcher.Insert(index + 1, indent + @"<ClCompile Include=""$(MonoSourceLocation)\mono\mini\dnSpy.c"" />");
+			textFilePatcher.Write();
+		}
+
+		void Patch_msvc_clrcompression_targets() {
+			if (solutionOptions.UnityVersion.Major < 2022) return;
+			var textFilePatcher = new TextFilePatcher(Path.Combine(solutionOptions.UnityVersionDir, "msvc", "clrcompression.targets"));
+			int index = textFilePatcher.GetIndexesOfLine(line => line.Text.Contains(@"</ClCompile>")).Last();
+			var indent = textFilePatcher.GetLeadingWhitespace(index);
+			string[] files = {
+				@"common\constants.c",
+				@"common\context.c",
+				@"common\platform.c",
+				@"common\brotli_transform.c",
+				@"enc\command.c",
+				@"enc\encoder_dict.c",
+				@"enc\fast_log.c",
+			};
+			foreach (var file in files)
+			{
+				textFilePatcher.Insert(++index, indent + @"<ClCompile Include=""$(MonoSourceLocation)\external\corefx\src\Native\AnyOS\brotli\" + file + "\">");
+				textFilePatcher.Insert(++index, indent + @"  <CompileAs>CompileAsC</CompileAs>");
+				textFilePatcher.Insert(++index, indent + @"  <AdditionalIncludeDirectories>$(MonoSourceLocation)\external\corefx\src\Native\AnyOS\brotli\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>");
+				textFilePatcher.Insert(++index, indent + @"  <PreprocessorDefinitions>%(PreprocessorDefinitions);DLLEXPORT=__declspec(dllexport);BROTLI_SHARED_COMPILATION</PreprocessorDefinitions>");
+				textFilePatcher.Insert(++index, indent + @"</ClCompile>");
+			}
 			textFilePatcher.Write();
 		}
 	}

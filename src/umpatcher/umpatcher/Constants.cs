@@ -31,8 +31,11 @@ namespace UnityMonoDllSourceCodePatcher {
 		public const string VersionTableEndLine = "";
 
 		public const string DefaultWindowsTargetPlatformVersion = "10.0.16299.0";
+		public const string RemoveWindowsTargetPlatformVersion = "remove";
 		public const string DefaultPlatformToolset = "v141";
 
 		public const string GitCleanTreeMessage = "nothing to commit, working tree clean";
+		
+		public const int ProcessTimeoutMilliseconds = 60000;
 	}
 }

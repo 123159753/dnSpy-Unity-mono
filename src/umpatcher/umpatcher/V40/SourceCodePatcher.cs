@@ -32,6 +32,7 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 		public void Patch() {
 			Patch_mono_metadata_icall_c();
 			Patch_mono_mini_debugger_agent_c();
+			Patch_mono_mini_debugger_engine_c();
 			Patch_mono_mini_mini_runtime_c();
 			Add_mono_mini_dnSpy_c();
 			Patch_masm_fixed_props();
@@ -51,9 +52,14 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 			textFilePatcher.Write();
 		}
 
-		static void Verify(string value, string expectedValue) {
+		static void Verify(string value, string expectedValue, string filename, int line_number) {
 			if (value != expectedValue)
-				throw new ProgramException($"Line is '{value}' but expected line is '{expectedValue}'");
+				throw new ProgramException($"Line '{line_number}' of file '{filename}' is '{value}' but expected line is '{expectedValue}'");
+		}
+		
+		static void VerifyWhitespace(string value, string filename, int line_number) {
+			if (!String.IsNullOrWhiteSpace(value))
+				throw new ProgramException($"Line '{line_number}' of file '{filename}' is '{value}' but expected whitespace");
 		}
 
 		void Patch_mono_mini_debugger_agent_c() {
@@ -63,41 +69,31 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 			var lines = textFilePatcher.Lines;
 
 			{
+				int index = textFilePatcher.GetIndexesOfLine(line => line.Text.Contains("static void process_profiler_event (EventKind event, gpointer arg);")).First();
+				textFilePatcher.Insert(++index, string.Empty);
+				textFilePatcher.Insert(++index, "extern int dnSpy_debugger_agent_parse_options (char* arg);");
+				textFilePatcher.Insert(++index, string.Empty);
+				textFilePatcher.Insert(++index, "extern void dnSpy_debugger_init_after_agent (void);");
+			}
+
+			{
 				int index = textFilePatcher.GetIndexesOfLine(line => line.Text.Contains("agent_config.setpgid = parse_flag (\"setpgid\", arg + 8)")).Single();
-				Verify(lines[index + 1].Text, "\t\t} else {");
+				Verify(lines[index + 1].Text, "\t\t} else {", filename, index + 1);
 				textFilePatcher.Insert(index + 1, "\t\t} else if (dnSpy_debugger_agent_parse_options (arg)) {");
 			}
 
 			{
 				int index = textFilePatcher.GetIndexesOfLine(line => line.Text.Contains("mono_native_tls_alloc (&debugger_tls_id, NULL);")).Single();
-				Verify(lines[index - 1].Text, string.Empty);
+				VerifyWhitespace(lines[index - 1].Text, filename, index - 1);
 				textFilePatcher.Insert(index, string.Empty);
 				textFilePatcher.Insert(index, "\tdnSpy_debugger_init_after_agent ();");
 			}
 
-			{
-				int index = textFilePatcher.GetIndexesOfLine(line => line.Text.StartsWith("insert_breakpoint (")).Single();
-				index = textFilePatcher.GetIndexOfLine(line => line.Text.Contains("gboolean it_has_sp = FALSE;"), index);
-				textFilePatcher.Insert(index + 1, "\tSeqPoint found_sp;");
-				index = textFilePatcher.GetIndexOfLine(line => line.Text.Contains("if (it.seq_point.il_offset == bp->il_offset) {"), index);
-				Verify(lines[index + 1].Text, "\t\t\tit_has_sp = TRUE;");
-				Verify(lines[index + 2].Text, "\t\t\tbreak;");
-				index += 2;
-				lines.RemoveAt(index);
-				textFilePatcher.Insert(index++, "\t\t\tif (!(it.seq_point.flags & MONO_SEQ_POINT_FLAG_NONEMPTY_STACK)) {");
-				textFilePatcher.Insert(index++, "\t\t\t\tfound_sp = it.seq_point;");
-				textFilePatcher.Insert(index++, "\t\t\t\tbreak;");
-				textFilePatcher.Insert(index++, "\t\t\t}");
-				textFilePatcher.Insert(index++, "\t\t\tfound_sp = it.seq_point;");
-				Verify(lines[index++].Text, "\t\t}");
-				Verify(lines[index++].Text, "\t}");
-				textFilePatcher.Insert(index++, "\tit.seq_point = found_sp;");
-			}
 
 			{
 				int index = textFilePatcher.GetIndexesOfLine(line => line.Text.Contains("case CMD_THREAD_GET_FRAME_INFO: {")).Single();
 				index = textFilePatcher.GetIndexOfLine(line => line.Text.Contains("tls = (DebuggerTlsData *)mono_g_hash_table_lookup (thread_to_tls, thread);"), index);
-				Verify(lines[index + 1].Text, "\t\tmono_loader_unlock ();");
+				Verify(lines[index + 1].Text, "\t\tmono_loader_unlock ();", filename, index + 1);
 				if(lines[index + 2].Text == "\t\tg_assert (tls);") {
 					lines[index + 2] = lines[index + 2].Replace("\t\tif (!tls)");
 					textFilePatcher.Insert(index + 3, "\t\t\treturn ERR_INVALID_ARGUMENT;");
@@ -106,27 +102,69 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 
 			textFilePatcher.Write();
 		}
+		
+		void Patch_mono_mini_debugger_engine_c() {
+			var filename = Path.Combine(solutionOptions.UnityVersionDir, "mono", "mini", "debugger-engine.c");
+			var textFilePatcher = new TextFilePatcher(filename);
+
+			var lines = textFilePatcher.Lines;
+			{
+				int index = textFilePatcher.GetIndexesOfLine(line => line.Text.StartsWith("insert_breakpoint (")).Single();
+				index = textFilePatcher.GetIndexOfLine(line => line.Text.Contains("gboolean it_has_sp = FALSE;"), index);
+				textFilePatcher.Insert(index + 1, "\tSeqPoint found_sp;");
+				index = textFilePatcher.GetIndexOfLine(line => line.Text.Contains("if (it.seq_point.il_offset == bp->il_offset) {"), index);
+				Verify(lines[index + 1].Text, "\t\t\tit_has_sp = TRUE;", filename, index + 1);
+				Verify(lines[index + 2].Text, "\t\t\tbreak;", filename, index + 2);
+				index += 2;
+				lines.RemoveAt(index);
+				textFilePatcher.Insert(index++, "\t\t\tif (!(it.seq_point.flags & MONO_SEQ_POINT_FLAG_NONEMPTY_STACK)) {");
+				textFilePatcher.Insert(index++, "\t\t\t\tfound_sp = it.seq_point;");
+				textFilePatcher.Insert(index++, "\t\t\t\tbreak;");
+				textFilePatcher.Insert(index++, "\t\t\t}");
+				textFilePatcher.Insert(index++, "\t\t\tfound_sp = it.seq_point;");
+				Verify(lines[index++].Text, "\t\t}", filename, index);
+				Verify(lines[index++].Text, "\t}", filename, index);
+				textFilePatcher.Insert(index++, "\tit.seq_point = found_sp;");
+			}
+			textFilePatcher.Write();
+		}
 
 		void Patch_mono_mini_mini_runtime_c() {
 			var filename = Path.Combine(solutionOptions.UnityVersionDir, "mono", "mini", "mini-runtime.c");
 			var textFilePatcher = new TextFilePatcher(filename);
-			int index = textFilePatcher.GetIndexesOfLine(line => line.Text.Contains("CHECKED_MONO_INIT ();")).Single();
-			textFilePatcher.Insert(++index, string.Empty);
-			textFilePatcher.Insert(++index, "\tdnSpy_debugger_init ();");
+
+			{
+				int index = textFilePatcher.GetIndexesOfLine(line => line.Text.Contains("mono_get_runtime_build_version (void);"))
+					.Single();
+				textFilePatcher.Insert(++index, string.Empty);
+				textFilePatcher.Insert(++index, "extern void dnSpy_debugger_init (void);");
+			}
+
+			{
+				int index = textFilePatcher.GetIndexesOfLine(line => line.Text.Contains("CHECKED_MONO_INIT ();"))
+					.Single();
+				textFilePatcher.Insert(++index, string.Empty);
+				textFilePatcher.Insert(++index, "\tdnSpy_debugger_init ();");
+			}
+			
 			textFilePatcher.Write();
 		}
 
 		void Add_mono_mini_dnSpy_c() {
 			var filename = Path.Combine(solutionOptions.UnityVersionDir, "mono", "mini", "dnSpy.c");
 			var sb = new StringBuilder();
-			sb.Append("﻿#include <mono/metadata/profiler.h>\r\n");
+			if (solutionOptions.UnityVersion.Major >= 2022)
+				sb.Append("﻿#include <mono/metadata/profiler-legacy.h>\r\n");
+			else sb.Append("﻿#include <mono/metadata/profiler.h>\r\n");
 			sb.Append("#include <mono/metadata/mono-debug.h>\r\n");
 			sb.Append("#include \"debugger-agent.h\"\r\n");
 			sb.Append("#define DNUNITYRT 1\r\n");
 			if (solutionOptions.UnityVersion.Major >= 2018) {
-				sb.Append("typedef void *MonoLegacyProfiler;\r\n");
-				sb.Append("typedef void (*MonoLegacyProfileFunc) (MonoLegacyProfiler *prof);\r\n");
-				sb.Append("MONO_API void mono_profiler_install (MonoLegacyProfiler *prof, MonoLegacyProfileFunc callback);\r\n");
+				if (solutionOptions.UnityVersion.Major < 2022) {
+					sb.Append("typedef void *MonoLegacyProfiler;\r\n");
+					sb.Append("typedef void (*MonoLegacyProfileFunc) (MonoLegacyProfiler *prof);\r\n");
+					sb.Append("MONO_API void mono_profiler_install (MonoLegacyProfiler *prof, MonoLegacyProfileFunc callback);\r\n");
+				}
 				sb.Append("#define DEFINED_LEGACY_PROFILER\r\n");
 			}
 			sb.Append("#include \"../dnSpyFiles/dnSpy.c\"\r\n");
@@ -146,7 +184,7 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 		}
 
 		void Patch_bdwgc_gc_atomic_ops_h() {
-			if (solutionOptions.UnityVersion.CompareTo(new UnityVersion(2018, 3, 0, UnityVersionRelease.Untyped, "-mbe")) < 0)
+			if (solutionOptions.UnityVersion.CompareTo(new UnityVersion(2018, 3, 0, UnityVersionRelease.Untyped, "-mbe")) < 0 || solutionOptions.UnityVersion.Major >= 2022)
 				return;
 			var filename = Path.Combine(solutionOptions.UnityVersionDir, "external", "bdwgc", "include", "private", "gc_atomic_ops.h");
 			var textFilePatcher = new TextFilePatcher(filename);
@@ -159,7 +197,7 @@ namespace UnityMonoDllSourceCodePatcher.V40 {
 		}
 
 		void Patch_bdwgc_gcconfig_h() {
-			if (solutionOptions.UnityVersion.CompareTo(new UnityVersion(2019, 1, 0, UnityVersionRelease.Untyped, "-mbe")) < 0)
+			if (solutionOptions.UnityVersion.CompareTo(new UnityVersion(2019, 1, 0, UnityVersionRelease.Untyped, "-mbe")) < 0  || solutionOptions.UnityVersion.Major >= 2022)
 				return;
 			var filename = Path.Combine(solutionOptions.UnityVersionDir, "external", "bdwgc", "include", "private", "gcconfig.h");
 			var textFilePatcher = new TextFilePatcher(filename);

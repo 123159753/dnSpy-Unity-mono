@@ -1,0 +1,68 @@
+﻿name: Release
+
+on:
+  push:
+    tags: [ "v*.*.*.*" ]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Parse Tag
+        id: parse_tag
+        shell: bash
+        run: |
+          if [[ ${{github.event.ref}} =~ ^refs/tags/(v(([0-9]{4})\.[0-9]+\.[0-9a-z]+)(-mbe)?\.[0-9]+)$ ]]; then
+                echo "tag=${BASH_REMATCH[1]}" | tee -a $GITHUB_OUTPUT
+                echo "version=unity-${BASH_REMATCH[2]}" | tee -a $GITHUB_OUTPUT
+                [[ ${BASH_REMATCH[4]} == "-mbe" ]] && DOTNET="-V40"
+                echo "solution=dnSpy-Unity-mono-v${BASH_REMATCH[3]}.x$DOTNET.sln" | tee -a $GITHUB_OUTPUT
+                echo "filename=dnSpy-Unity-mono-${BASH_REMATCH[1]}.zip" | tee -a $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout
+        if: steps.parse_tag.outputs.tag != ''
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Add MSBuild to PATH
+        if: steps.parse_tag.outputs.tag != ''
+        uses: microsoft/setup-msbuild@v1.0.2
+
+      - name: Build
+        if: steps.parse_tag.outputs.tag != ''
+        run: msbuild /m /p:Configuration=Release /p:Platform=x64 ${{steps.parse_tag.outputs.solution}}
+
+      - name: Create Zip
+        if: steps.parse_tag.outputs.tag != ''
+        run: Compress-Archive -Path builds\Release\${{steps.parse_tag.outputs.version}}\* -Destination ${{steps.parse_tag.outputs.filename}}
+
+      - name: Create Release
+        id: create_release
+        if: steps.parse_tag.outputs.tag != ''
+        uses: actions/create-release@v1
+        env:
+          # This token is provided by Actions, you do not need to create your own token.
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}} 
+        with:
+          tag_name: ${{github.ref}}
+          release_name: ${{steps.parse_tag.outputs.tag}}
+          body: Release ${{steps.parse_tag.outputs.tag}}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        if: steps.parse_tag.outputs.tag != ''
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        with:
+          # The Create Release step above outputs the URL to upload assets to as upload_url.
+          upload_url: ${{steps.create_release.outputs.upload_url}} 
+          asset_path: ${{steps.parse_tag.outputs.filename}}
+          asset_name: ${{steps.parse_tag.outputs.filename}}
+          asset_content_type: application/zip

@@ -18,36 +18,56 @@
 */
 
 using System.Diagnostics;
+using System.Text;
+using System.Threading;
 
 namespace UnityMonoDllSourceCodePatcher {
 	static class Exec {
-		public static int Run(string workingDir, string filename, string args) =>
-			RunCore(workingDir, filename, args, redirectOutput: false, out _, out _);
+		public static int Run(string workingDir, string filename, string args, out string standardOutput, out string standardError) {
+			// Git status messages larger than the process output buffer are very likely,
+			// in which case this method would just hang on WaitForExit.
+			// To prevent this, drain the buffers to string builders as we go.
+			var output = new StringBuilder();
+            var error = new StringBuilder();
+			
+            // If the process DataReceived delegates are called after the wait handles are disposed,
+            // an ObjectDisposedException is thrown.
+            // To prevent this, we using the wait handles first so that they are disposed last.
+            using var outputWaitHandle = new AutoResetEvent(false);
+            using var errorWaitHandle = new AutoResetEvent(false);
+            using var process = new Process {
+	            StartInfo = {
+		            FileName = filename,
+		            Arguments = args,
+		            WorkingDirectory = workingDir,
+		            CreateNoWindow = true,
+		            UseShellExecute = false,
+					RedirectStandardOutput = true,
+		            RedirectStandardError = true,
+	            },
+            };
+            process.OutputDataReceived += (sender, e) => {
+				if (e.Data == null) outputWaitHandle.Set();
+				else output.AppendLine(e.Data);
+			};
+			process.ErrorDataReceived += (sender, e) => {
+				if (e.Data == null) errorWaitHandle.Set();
+				else error.AppendLine(e.Data);
+			};
 
-		public static int Run(string workingDir, string filename, string args, out string standardOutput, out string standardError) =>
-			RunCore(workingDir, filename, args, redirectOutput: true, out standardOutput, out standardError);
+			if (!process.Start()) 
+				throw new ProgramException($"Process did not start for command: {filename} {args}");
+			process.BeginOutputReadLine();
+			process.BeginErrorReadLine();
 
-		static int RunCore(string workingDir, string filename, string args, bool redirectOutput, out string standardOutput, out string standardError) {
-			var options = new ProcessStartInfo(filename, args);
-			options.WorkingDirectory = workingDir;
-			options.CreateNoWindow = true;
-			options.UseShellExecute = false;
-			if (redirectOutput) {
-				options.RedirectStandardOutput = true;
-				options.RedirectStandardError = true;
-			}
-			using (var process = Process.Start(options)) {
-				process.WaitForExit();
-				if (redirectOutput) {
-					standardOutput = process.StandardOutput.ReadToEnd();
-					standardError = process.StandardError.ReadToEnd();
-				}
-				else {
-					standardOutput = string.Empty;
-					standardError = string.Empty;
-				}
-				return process.ExitCode;
-			}
+			if (!process.WaitForExit(Constants.ProcessTimeoutMilliseconds) ||
+			    !outputWaitHandle.WaitOne(Constants.ProcessTimeoutMilliseconds) ||
+			    !errorWaitHandle.WaitOne(Constants.ProcessTimeoutMilliseconds))
+				throw new ProgramException($"Process timed out for command: {filename} {args}");
+			
+			standardOutput = output.ToString();
+			standardError = error.ToString();
+			return process.ExitCode;
 		}
 	}
 }

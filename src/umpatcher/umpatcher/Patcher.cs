@@ -25,7 +25,7 @@ namespace UnityMonoDllSourceCodePatcher {
 	abstract class Patcher {
 		readonly string unityVersion;
 		readonly string unityGitHash;
-		readonly GitRepo unityRepo;
+		protected readonly GitRepo unityRepo;
 		protected readonly GitRepo dnSpyRepo;
 		protected readonly string dnSpyVersionPath;
 
@@ -74,15 +74,19 @@ namespace UnityMonoDllSourceCodePatcher {
 				FileUtils.CopyDirectoryFromTo(sourceDir, destinationDir);
 			}
 
-			var gitignore = Path.Combine(dnSpyVersionPath, "mono", "cil", ".gitignore");
-			if (!TextFilePatcher.RemoveLines(gitignore, line => line.Text == "/opcode.def"))
-				throw new ProgramException("Couldn't remove /opcode.def from .gitignore");
+			CopyOriginalUnityFilesCore();
 
 			Log($"Committing copied files");
 			dnSpyRepo.CommitAllFiles($"Add Unity files ({Path.GetFileName(dnSpyVersionPath)}), commit hash {unityGitHash}");
 		}
 
-		static string PathCombine(string path1, string path2) {
+		protected virtual void CopyOriginalUnityFilesCore() {
+			var gitignore = Path.Combine(dnSpyVersionPath, "mono", "cil", ".gitignore");
+			if (!TextFilePatcher.RemoveLines(gitignore, line => line.Text == "/opcode.def"))
+				throw new ProgramException("Couldn't remove /opcode.def from .gitignore");
+		}
+
+		protected static string PathCombine(string path1, string path2) {
 			var list = new List<string>();
 			list.Add(path1);
 			list.AddRange(path2.Split('/'));
