@@ -141,6 +141,7 @@ insert_breakpoint (MonoSeqPointInfo *seq_points, MonoDomain *domain, MonoJitInfo
 	BreakpointInstance *inst;
 	SeqPointIterator it;
 	gboolean it_has_sp = FALSE;
+	SeqPoint found_sp;
 
 	if (error)
 		error_init (error);
@@ -149,9 +150,14 @@ insert_breakpoint (MonoSeqPointInfo *seq_points, MonoDomain *domain, MonoJitInfo
 	while (mono_seq_point_iterator_next (&it)) {
 		if (it.seq_point.il_offset == bp->il_offset) {
 			it_has_sp = TRUE;
-			break;
+			if (!(it.seq_point.flags & MONO_SEQ_POINT_FLAG_NONEMPTY_STACK)) {
+				found_sp = it.seq_point;
+				break;
+			}
+			found_sp = it.seq_point;
 		}
 	}
+	it.seq_point = found_sp;
 
 	if (!it_has_sp) {
 		/*

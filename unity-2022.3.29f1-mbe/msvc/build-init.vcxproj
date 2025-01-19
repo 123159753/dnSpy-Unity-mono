@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -23,7 +23,7 @@
     <ClInclude Include="..\winconfig.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{92AE7622-5F58-4234-9A26-9EC71876B3F4}</ProjectGuid>
+    <ProjectGuid>{9E61E3EC-33AB-48DC-BD3F-E47AFBC7794B}</ProjectGuid>
     <RootNamespace>buildinit</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>

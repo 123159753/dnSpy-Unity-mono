@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -20,7 +20,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="build-init.vcxproj">
-      <Project>{92ae7622-5f58-4234-9a26-9ec71876b3f4}</Project>
+      <Project>{9e61e3ec-33ab-48dc-bd3f-e47afbc7794b}</Project>
     </ProjectReference>
   </ItemGroup>
   <PropertyGroup Label="Globals">

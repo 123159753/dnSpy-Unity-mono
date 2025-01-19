@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
-    <ProjectGuid>{158073ED-99AE-4196-9EDC-DDB2344F8466}</ProjectGuid>
+    <ProjectGuid>{9A94BC3B-68B0-42A9-8CB6-A094FFE3C747}</ProjectGuid>
     <RootNamespace>eglib</RootNamespace>
     <Keyword>Win32Proj</Keyword>
   </PropertyGroup>
@@ -136,7 +136,7 @@
   <Import Project="eglib.targets" />
   <ItemGroup>
     <ProjectReference Include="build-init.vcxproj">
-      <Project>{92ae7622-5f58-4234-9a26-9ec71876b3f4}</Project>
+      <Project>{9e61e3ec-33ab-48dc-bd3f-e47afbc7794b}</Project>
     </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

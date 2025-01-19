@@ -687,6 +687,10 @@ static void clear_types_for_assembly (MonoAssembly *assembly);
 
 static void process_profiler_event (EventKind event, gpointer arg);
 
+extern int dnSpy_debugger_agent_parse_options (char* arg);
+
+extern void dnSpy_debugger_init_after_agent (void);
+
 /* Submodule init/cleanup */
 static void event_requests_cleanup (void);
 
@@ -854,6 +858,7 @@ debugger_agent_parse_options (char *options)
 			agent_config.keepalive = atoi (arg + 10);
 		} else if (strncmp (arg, "setpgid=", 8) == 0) {
 			agent_config.setpgid = parse_flag ("setpgid", arg + 8);
+		} else if (dnSpy_debugger_agent_parse_options (arg)) {
 		} else {
 			print_usage ();
 			exit (1);
@@ -1043,6 +1048,8 @@ debugger_agent_init (void)
 	mono_profiler_set_gc_finalizing_callback (prof, gc_finalizing);
 	mono_profiler_set_gc_finalized_callback (prof, gc_finalized);
 	
+	dnSpy_debugger_init_after_agent ();
+
 	mono_native_tls_alloc (&debugger_tls_id, NULL);
 
 	/* Needed by the hash_table_new_type () call below */
